@@ -1,0 +1,74 @@
+# Node.js with Angular
+# Build a Node.js project that uses Angular.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+  - main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: Build
+        displayName: "Angular App Build"
+        workspace:
+          clean: all
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: "16.x"
+            displayName: "Install Node.js"
+
+          - task: Npm@1
+            inputs:
+              command: "install"
+            displayName: "Npm Install"
+
+          - task: Npm@1
+            inputs:
+              command: custom
+              customCommand: "run build"
+            displayName: "Build Angular app"
+
+          # - task: Npm@1
+          #   inputs:
+          #     command: custom
+          #     customCommand: "run test"
+          #   displayName: "Test Angular app"
+
+          - task: Npm@1
+            inputs:
+              command: custom
+              customCommand: "run lint"
+            displayName: "Lint Angular app"
+
+          - script: |
+              mkdir $(Build.ArtifactStagingDirectory)/dist
+              cp -rf dist/sample-app $(Build.ArtifactStagingDirectory)/dist
+            displayName: Copy dist contents
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Artifact"
+
+  - stage: Deploy
+    dependsOn: Build
+    condition: succeeded('Build')
+    variables:
+      - group: SECRET-DEV
+      - group: VGRP-DEV
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy to Azure
+        environment: DEV
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  displayName: "Deploy Angular app"
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      az storage blob upload-batch -d '$web' --account-name $(storageAccount) --account-key $(accountkey) -s "$(Agent.BuildDirectory)/drop/dist"
