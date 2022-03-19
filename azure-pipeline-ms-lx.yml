@@ -44,7 +44,7 @@ stages:
 
           - script: |
               mkdir $(Build.ArtifactStagingDirectory)/dist
-              cp -rf dist/sample-app $(Build.ArtifactStagingDirectory)/dist
+              cp -rf dist/sample-app/* $(Build.ArtifactStagingDirectory)/dist
             displayName: Copy dist contents
 
           - task: PublishBuildArtifacts@1
